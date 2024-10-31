@@ -1,0 +1,23 @@
+echo "# Virtual Environment
+venv/
+env/
+
+# Python
+__pycache__/
+*.py[cod]
+*.so
+
+# Environment variables
+.env
+
+# IDE
+.vscode/
+.idea/
+
+# Flask
+instance/
+uploads/
+
+# Database
+*.db
+*.sqlite" > .gitignore
