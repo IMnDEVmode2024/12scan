@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Audio Scanner</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .tabs {
+            margin-bottom: 20px;
+        }
+        .tab-button {
+            padding: 10px 20px;
+            border: none;
+            background-color: #ddd;
+            cursor: pointer;
+            border-radius: 4px;
+            margin-right: 10px;
+        }
+        .tab-button.active {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .btn {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .btn:hover {
+            background-color: #45a049;
+        }
+        .results {
+            margin-top: 30px;
+        }
+        .results-section {
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border-radius: 4px;
+        }
+        .error {
+            color: red;
+            padding: 10px;
+            background-color: #ffebee;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        #loadingSpinner {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Audio Scanner</h1>
+        
+        <div class="tabs">
+            <button class="tab-button active" onclick="showTab('upload')">File Upload</button>
+            <button class="tab-button" onclick="showTab('stream')">Stream URL</button>
+        </div>
+
+        <div id="uploadTab" class="tab-content active">
+            <form id="uploadForm" onsubmit="handleFileUpload(event)">
+                <div class="form-group">
+                    <label for="audioFile">Select Audio File:</label>
+                    <input type="file" id="audioFile" name="audio" accept="audio/*" required>
+                </div>
+                <button type="submit" class="btn">Upload and Process</button>
+            </form>
+        </div>
+
+        <div id="streamTab" class="tab-content">
+            <form id="streamForm" onsubmit="handleStreamUrl(event)">
+                <div class="form-group">
+                    <label for="streamUrl">Stream URL:</label>
+                    <input type="url" id="streamUrl" name="stream_url" required>
+                </div>
+                <button type="submit" class="btn">Process Stream</button>
+            </form>
+        </div>
+
+        <div id="loadingSpinner">Processing...</div>
+
+        <div id="results" class="results">
+            <div class="results-section">
+                <h2>Transcription</h2>
+                <div id="transcriptionResult"></div>
+            </div>
+            <div class="results-section">
+                <h2>Entities</h2>
+                <div id="entitiesResult"></div>
+            </div>
+            <div class="results-section">
+                <h2>Locations</h2>
+                <div id="locationsResult"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.tab-button').forEach(button => {
+                button.classList.remove('active');
+            });
+
+            // Show selected tab
+            document.getElementById(tabName + 'Tab').classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        async function handleFileUpload(event) {
+            event.preventDefault();
+            const formData = new FormData();
+            const fileInput = document.getElementById('audioFile');
+            formData.append('audio', fileInput.files[0]);
+
+            showLoading(true);
+            try {
+                const response = await fetch('/transcribe', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                displayResults(data);
+            } catch (error) {
+                displayError(error);
+            }
+            showLoading(false);
+        }
+
+        async function handleStreamUrl(event) {
+            event.preventDefault();
+            const streamUrl = document.getElementById('streamUrl').value;
+
+            showLoading(true);
+            try {
+                const response = await fetch('/stream', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ stream_url: streamUrl })
+                });
+                const data = await response.json();
+                displayResults(data);
+            } catch (error) {
+                displayError(error);
+            }
+            showLoading(false);
+        }
+
+        function displayResults(data) {
+            if (data.error) {
+                displayError(data.error);
+                return;
+            }
+
+            // Display transcription
+            const transcriptionHtml = `
+                <p><strong>Full Text:</strong> ${data.transcription.full_text}</p>
+                <h3>Segments:</h3>
+                <ul>
+                    ${data.transcription.segments.map(segment => `
+                        <li>
+                            ${segment.start.toFixed(2)}s - ${segment.end.toFixed(2)}s: ${segment.text}
+                        </li>
+                    `).join('')}
+                </ul>
+            `;
+            document.getElementById('transcriptionResult').innerHTML = transcriptionHtml;
+
+            // Display entities
+            document.getElementById('entitiesResult').innerHTML = `
+                <ul>
+                    ${Object.entries(data.entities).map(([type, entities]) => `
+                        <li><strong>${type}:</strong> ${entities.join(', ')}</li>
+                    `).join('')}
+                </ul>
+            `;
+
+            // Display locations
+            document.getElementById('locationsResult').innerHTML = `
+                <ul>
+                    ${data.locations.map(location => `
+                        <li>${location.name}: ${location.coordinates.join(', ')}</li>
+                    `).join('')}
+                </ul>
+            `;
+        }
+
+        function displayError(error) {
+            const errorDiv = document.createElement('div');
+            errorDiv.classList.add('error');
+            errorDiv.textContent = `Error: ${error}`;
+            document.getElementById('results').prepend(errorDiv);
+        }
+
+        function showLoading(show) {
+            document.getElementById('loadingSpinner').style.display = show ? 'block' : 'none';
+        }
+    </script>
+</body>
+</html>
