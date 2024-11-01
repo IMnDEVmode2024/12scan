@@ -1,7 +1,9 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Audio Scanner</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Transcription and Analysis</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -10,182 +12,140 @@
             padding: 20px;
             background-color: #f5f5f5;
         }
+
         .container {
             background-color: white;
-            padding: 30px;
+            padding: 20px;
             border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        .tabs {
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             margin-bottom: 20px;
         }
-        .tab-button {
-            padding: 10px 20px;
-            border: none;
-            background-color: #ddd;
-            cursor: pointer;
-            border-radius: 4px;
-            margin-right: 10px;
+
+        h1, h2 {
+            color: #333;
         }
-        .tab-button.active {
+
+        .input-section {
+            margin-bottom: 20px;
+        }
+
+        .button {
             background-color: #4CAF50;
             color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
         }
-        .tab-content {
-            display: none;
+
+        .button:hover {
+            background-color: #45a049;
         }
-        .tab-content.active {
-            display: block;
-        }
-        .form-group {
-            margin-bottom: 20px;
-        }
-        .form-group label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
-        }
-        .form-group input {
-            width: 100%;
-            padding: 8px;
+
+        .result-section {
+            margin-top: 20px;
+            padding: 15px;
             border: 1px solid #ddd;
             border-radius: 4px;
         }
-        .btn {
-            background-color: #4CAF50;
-            color: white;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        .btn:hover {
-            background-color: #45a049;
-        }
-        .results {
-            margin-top: 30px;
-        }
-        .results-section {
-            margin-bottom: 20px;
-            padding: 15px;
-            background-color: #f9f9f9;
-            border-radius: 4px;
-        }
+
         .error {
             color: red;
             padding: 10px;
-            background-color: #ffebee;
+            background-color: #ffe6e6;
             border-radius: 4px;
             margin: 10px 0;
         }
-        #loadingSpinner {
+
+        #streamUrl {
+            width: 100%;
+            padding: 8px;
+            margin: 8px 0;
+            box-sizing: border-box;
+        }
+
+        .loading {
             display: none;
+            margin: 20px 0;
             text-align: center;
-            padding: 20px;
+        }
+
+        .loading::after {
+            content: "Processing...";
+            animation: dots 1s steps(5, end) infinite;
+        }
+
+        @keyframes dots {
+            0%, 20% { content: "Processing."; }
+            40% { content: "Processing.."; }
+            60% { content: "Processing..."; }
+            80% { content: "Processing...."; }
+            100% { content: "Processing....."; }
+        }
+
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        li {
+            margin-bottom: 8px;
+            padding: 8px;
+            background-color: #f9f9f9;
+            border-radius: 4px;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Audio Scanner</h1>
-        
-        <div class="tabs">
-            <button class="tab-button active" onclick="showTab('upload')">File Upload</button>
-            <button class="tab-button" onclick="showTab('stream')">Stream URL</button>
+        <h1>Audio Transcription and Analysis</h1>
+
+        <!-- File Upload Section -->
+        <div class="input-section">
+            <h2>Upload Audio File</h2>
+            <input type="file" id="audioFile" accept="audio/*">
+            <button class="button" onclick="handleFileUpload()">Process Audio File</button>
         </div>
 
-        <div id="uploadTab" class="tab-content active">
-            <form id="uploadForm" onsubmit="handleFileUpload(event)">
-                <div class="form-group">
-                    <label for="audioFile">Select Audio File:</label>
-                    <input type="file" id="audioFile" name="audio" accept="audio/*" required>
-                </div>
-                <button type="submit" class="btn">Upload and Process</button>
-            </form>
+        <!-- Stream URL Section -->
+        <div class="input-section">
+            <h2>Process Audio Stream</h2>
+            <input type="text" id="streamUrl" placeholder="Enter stream URL">
+            <button class="button" onclick="handleStreamUrl()">Process Stream</button>
         </div>
 
-        <div id="streamTab" class="tab-content">
-            <form id="streamForm" onsubmit="handleStreamUrl(event)">
-                <div class="form-group">
-                    <label for="streamUrl">Stream URL:</label>
-                    <input type="url" id="streamUrl" name="stream_url" required>
-                </div>
-                <button type="submit" class="btn">Process Stream</button>
-            </form>
-        </div>
+        <!-- Loading Indicator -->
+        <div id="loading" class="loading"></div>
 
-        <div id="loadingSpinner">Processing...</div>
+        <!-- Results Section -->
+        <div class="result-section">
+            <h2>Transcription</h2>
+            <div id="transcriptionResult"></div>
 
-        <div id="results" class="results">
-            <div class="results-section">
-                <h2>Transcription</h2>
-                <div id="transcriptionResult"></div>
-            </div>
-            <div class="results-section">
-                <h2>Entities</h2>
-                <div id="entitiesResult"></div>
-            </div>
-            <div class="results-section">
-                <h2>Locations</h2>
-                <div id="locationsResult"></div>
-            </div>
+            <h2>Named Entities</h2>
+            <div id="entitiesResult"></div>
+
+            <h2>Locations</h2>
+            <div id="locationsResult"></div>
         </div>
     </div>
 
     <script>
-        function showTab(tabName) {
-            // Hide all tabs
-            document.querySelectorAll('.tab-content').forEach(tab => {
-                tab.classList.remove('active');
-            });
-            document.querySelectorAll('.tab-button').forEach(button => {
-                button.classList.remove('active');
-            });
-
-            // Show selected tab
-            document.getElementById(tabName + 'Tab').classList.add('active');
-            event.target.classList.add('active');
+        function showLoading() {
+            document.getElementById('loading').style.display = 'block';
         }
 
-        async function handleFileUpload(event) {
-            event.preventDefault();
-            const formData = new FormData();
-            const fileInput = document.getElementById('audioFile');
-            formData.append('audio', fileInput.files[0]);
-
-            showLoading(true);
-            try {
-                const response = await fetch('/transcribe', {
-                    method: 'POST',
-                    body: formData
-                });
-                const data = await response.json();
-                displayResults(data);
-            } catch (error) {
-                displayError(error);
-            }
-            showLoading(false);
+        function hideLoading() {
+            document.getElementById('loading').style.display = 'none';
         }
 
-        async function handleStreamUrl(event) {
-            event.preventDefault();
-            const streamUrl = document.getElementById('streamUrl').value;
-
-            showLoading(true);
-            try {
-                const response = await fetch('/stream', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ stream_url: streamUrl })
-                });
-                const data = await response.json();
-                displayResults(data);
-            } catch (error) {
-                displayError(error);
-            }
-            showLoading(false);
+        function displayError(message) {
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error';
+            errorDiv.textContent = message;
+            document.querySelector('.result-section').prepend(errorDiv);
+            setTimeout(() => errorDiv.remove(), 5000);
         }
 
         function displayResults(data) {
@@ -209,33 +169,77 @@
             document.getElementById('transcriptionResult').innerHTML = transcriptionHtml;
 
             // Display entities
-            document.getElementById('entitiesResult').innerHTML = `
+            const entitiesHtml = `
                 <ul>
-                    ${Object.entries(data.entities).map(([type, entities]) => `
-                        <li><strong>${type}:</strong> ${entities.join(', ')}</li>
+                    ${data.entities.map(entity => `
+                        <li><strong>${entity.type}:</strong> ${entity.entity}</li>
                     `).join('')}
                 </ul>
             `;
+            document.getElementById('entitiesResult').innerHTML = entitiesHtml;
 
             // Display locations
-            document.getElementById('locationsResult').innerHTML = `
+            const locationsHtml = `
                 <ul>
                     ${data.locations.map(location => `
-                        <li>${location.name}: ${location.coordinates.join(', ')}</li>
+                        <li>${location.location}: ${location.latitude}, ${location.longitude}</li>
                     `).join('')}
                 </ul>
             `;
+            document.getElementById('locationsResult').innerHTML = locationsHtml;
         }
 
-        function displayError(error) {
-            const errorDiv = document.createElement('div');
-            errorDiv.classList.add('error');
-            errorDiv.textContent = `Error: ${error}`;
-            document.getElementById('results').prepend(errorDiv);
+        async function handleFileUpload() {
+            const fileInput = document.getElementById('audioFile');
+            const file = fileInput.files[0];
+
+            if (!file) {
+                displayError('Please select a file first');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('audio', file);
+
+            showLoading();
+            try {
+                const response = await fetch('/transcribe', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                displayResults(data);
+            } catch (error) {
+                displayError('Error processing file: ' + error.message);
+            } finally {
+                hideLoading();
+            }
         }
 
-        function showLoading(show) {
-            document.getElementById('loadingSpinner').style.display = show ? 'block' : 'none';
+        async function handleStreamUrl() {
+            const streamUrl = document.getElementById('streamUrl').value;
+
+            if (!streamUrl) {
+                displayError('Please enter a stream URL');
+                return;
+            }
+
+            showLoading();
+            try {
+                const response = await fetch('/stream', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ stream_url: streamUrl })
+                });
+                const data = await response.json();
+                displayResults(data);
+            } catch (error) {
+                displayError('Error processing stream: ' + error.message);
+            } finally {
+                hideLoading();
+            }
         }
     </script>
 </body>
