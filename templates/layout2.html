@@ -13,7 +13,7 @@
             background-color: #f5f5f5;
         }
 
-        .container {
+       .container {
             background-color: white;
             padding: 20px;
             border-radius: 8px;
@@ -25,11 +25,11 @@
             color: #333;
         }
 
-        .input-section {
+       .input-section {
             margin-bottom: 20px;
         }
 
-        .button {
+       .button {
             background-color: #4CAF50;
             color: white;
             padding: 10px 20px;
@@ -39,18 +39,18 @@
             font-size: 16px;
         }
 
-        .button:hover {
+       .button:hover {
             background-color: #45a049;
         }
 
-        .result-section {
+       .result-section {
             margin-top: 20px;
             padding: 15px;
             border: 1px solid #ddd;
             border-radius: 4px;
         }
 
-        .error {
+       .error {
             color: red;
             padding: 10px;
             background-color: #ffe6e6;
@@ -65,13 +65,13 @@
             box-sizing: border-box;
         }
 
-        .loading {
+       .loading {
             display: none;
             margin: 20px 0;
             text-align: center;
         }
 
-        .loading::after {
+       .loading::after {
             content: "Processing...";
             animation: dots 1s steps(5, end) infinite;
         }
@@ -87,6 +87,7 @@
         ul {
             list-style-type: none;
             padding: 0;
+            margin: 0;
         }
 
         li {
@@ -113,6 +114,13 @@
             <h2>Process Audio Stream</h2>
             <input type="text" id="streamUrl" placeholder="Enter stream URL">
             <button class="button" onclick="handleStreamUrl()">Process Stream</button>
+        </div>
+
+        <!-- Record Audio Section -->
+        <div class="input-section">
+            <h2>Record Audio from Microphone</h2>
+            <button class="button" onclick="handleRecordAudio()">Record Audio</button>
+            <div id="recordedAudio"></div>
         </div>
 
         <!-- Loading Indicator -->
@@ -210,7 +218,7 @@
                 const data = await response.json();
                 displayResults(data);
             } catch (error) {
-                displayError('Error processing file: ' + error.message);
+                displayError('Error processing audio:'+ error.message);
             } finally {
                 hideLoading();
             }
@@ -236,10 +244,45 @@
                 const data = await response.json();
                 displayResults(data);
             } catch (error) {
-                displayError('Error processing stream: ' + error.message);
+                displayError('Error processing stream:'+ error.message);
             } finally {
                 hideLoading();
             }
+        }
+
+        async function handleRecordAudio() {
+            const audioContext = new AudioContext();
+            const mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const mediaStreamSource = audioContext.createMediaStreamSource(mediaStream);
+            const gainNode = audioContext.createGain();
+            gainNode.gain.value = 1;
+            mediaStreamSource.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+
+            const chunks = [];
+            mediaStream.getAudioTracks()[0].addEventListener('ended', () => {
+                const audioBlob = new Blob(chunks, { type: 'audio/wav' });
+                const formData = new FormData();
+                formData.append('audio', audioBlob);
+
+                showLoading();
+                try {
+                    const response = await fetch('/transcribe', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const data = await response.json();
+                    displayResults(data);
+                } catch (error) {
+                    displayError('Error processing audio:'+ error.message);
+                } finally {
+                    hideLoading();
+                }
+            });
+
+            mediaStream.getAudioTracks()[0].addEventListener('dataavailable', (event) => {
+                chunks.push(event.data);
+            });
         }
     </script>
 </body>

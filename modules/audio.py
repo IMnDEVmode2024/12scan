@@ -82,3 +82,53 @@ def reduce_noise(audio_path: str) -> Tuple[Optional[np.ndarray], Optional[int]]:
     except Exception as e:
         print(f"Error reducing noise: {str(e)}")
         return None, None
+
+def record_audio(output_path: str) -> bool:
+    """
+    Record audio from the microphone.
+    
+    Args:
+        output_path (str): Path to save the recorded audio file
+        
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    try:
+        # Open the microphone
+        import pyaudio
+        p = pyaudio.PyAudio()
+        stream = p.open(format=pyaudio.paInt16,
+                        channels=1,
+                        rate=44100,
+                        input=True,
+                        frames_per_buffer=1024)
+        
+        print("Recording...")
+        frames = []
+        
+        while True:
+            data = stream.read(1024)
+            frames.append(data)
+            
+            # Save the recorded data to a WAV file
+            wf = wave.open(output_path, 'wb')
+            wf.setnchannels(1)
+            wf.setsampwidth(p.get_sample_size(pyaudio.paInt16))
+            wf.setframerate(44100)
+            wf.writeframes(b''.join(frames))
+            wf.close()
+            
+            # Break the loop after 5 seconds
+            if len(frames) >= 5 * 44100 // 1024:
+                break
+        
+        # Close the microphone
+        stream.stop_stream()
+        stream.close()
+        p.terminate()
+        
+        return True
+        
+    except Exception as e:
+        print(f"Error recording audio: {str(e)}")
+        return False
