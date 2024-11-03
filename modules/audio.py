@@ -5,6 +5,7 @@ import librosa # type: ignore
 import soundfile # type: ignore
 import noisereduce as nr # type: ignore
 import numpy as np
+import wave
 from typing import Tuple, Optional
 
 def fetch_audio(stream_url: str, output_path: str, max_time: int = 15) -> bool:
@@ -110,17 +111,17 @@ def record_audio(output_path: str) -> bool:
             data = stream.read(1024)
             frames.append(data)
             
-            # Save the recorded data to a WAV file
-            wf = wave.open(output_path, 'wb')
-            wf.setnchannels(1)
-            wf.setsampwidth(p.get_sample_size(pyaudio.paInt16))
-            wf.setframerate(44100)
-            wf.writeframes(b''.join(frames))
-            wf.close()
-            
             # Break the loop after 5 seconds
             if len(frames) >= 5 * 44100 // 1024:
                 break
+        
+        # Save the recorded data to a WAV file
+        wf = wave.open(output_path, 'wb')
+        wf.setnchannels(1)
+        wf.setsampwidth(p.get_sample_size(pyaudio.paInt16))
+        wf.setframerate(44100)
+        wf.writeframes(b''.join(frames))
+        wf.close()
         
         # Close the microphone
         stream.stop_stream()

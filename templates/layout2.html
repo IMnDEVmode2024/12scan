@@ -22,7 +22,8 @@
             margin-bottom: 20px;
         }
 
-        h1, h2 {
+        h1,
+        h2 {
             color: #333;
         }
 
@@ -141,7 +142,8 @@
         <div id="recordTab" class="tab-content">
             <div class="input-section">
                 <h2>Record Audio from Microphone</h2>
-                <button class="button" id="recordButton" onclick="handleRecordAudio()">Record Audio</button>
+                <button class="button" id="recordButton" onclick="startRecording()">Start Recording</button>
+                <button class="button" id="stopButton" style="display: none;" onclick="stopRecording()">Stop Recording</button>
                 <div id="recordedAudio"></div>
             </div>
         </div>
@@ -178,30 +180,30 @@
         }
 
         async function main() {
-          function showLoading() {
-            document.getElementById('loading').style.display = 'block';
-          }
-      
-          function hideLoading() {
-            document.getElementById('loading').style.display = 'none';
-          }
-      
-          function displayError(message) {
-            const errorDiv = document.createElement('div');
-            errorDiv.className = 'error';
-            errorDiv.textContent = message;
-            document.querySelector('.result-section').prepend(errorDiv);
-            setTimeout(() => errorDiv.remove(), 5000);
-          }
-      
-          function displayResults(data) {
-            if (data.error) {
-              displayError(data.error);
-              return;
+            function showLoading() {
+                document.getElementById('loading').style.display = 'block';
             }
-      
-            // Display transcription
-            const transcriptionHtml = `
+
+            function hideLoading() {
+                document.getElementById('loading').style.display = 'none';
+            }
+
+            function displayError(message) {
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'error';
+                errorDiv.textContent = message;
+                document.querySelector('.result-section').prepend(errorDiv);
+                setTimeout(() => errorDiv.remove(), 5000);
+            }
+
+            function displayResults(data) {
+                if (data.error) {
+                    displayError(data.error);
+                    return;
+                }
+
+                // Display transcription
+                const transcriptionHtml = `
                 <p><strong>Full Text:</strong> ${data.transcription.full_text}</p>
                 <h3>Segments:</h3>
                 <ul>
@@ -212,126 +214,137 @@
                     `).join('')}
                 </ul>
             `;
-            document.getElementById('transcriptionResult').innerHTML = transcriptionHtml;
-      
-            // Display entities
-            const entitiesHtml = `
+                document.getElementById('transcriptionResult').innerHTML = transcriptionHtml;
+
+                // Display entities
+                const entitiesHtml = `
                 <ul>
                     ${data.entities.map(entity => `
                         <li><strong>${entity.type}:</strong> ${entity.entity}</li>
                     `).join('')}
                 </ul>
             `;
-            document.getElementById('entitiesResult').innerHTML = entitiesHtml;
-      
-            // Display locations
-            const locationsHtml = `
+                document.getElementById('entitiesResult').innerHTML = entitiesHtml;
+
+                // Display locations
+                const locationsHtml = `
                 <ul>
                     ${data.locations.map(location => `
                         <li>${location.location}: ${location.latitude}, ${location.longitude}</li>
                     `).join('')}
                 </ul>
             `;
-            document.getElementById('locationsResult').innerHTML = locationsHtml;
-          }
-      
-          async function handleFileUpload() {
-            const fileInput = document.getElementById('audioFile');
-            const file = fileInput.files[0];
-      
-            if (!file) {
-              displayError('Please select a file first');
-              return;
+                document.getElementById('locationsResult').innerHTML = locationsHtml;
             }
-      
-            const formData = new FormData();
-            formData.append('audio', file);
-      
-            showLoading();
-            try {
-              const response = await fetch('/transcribe', {
-                method: 'POST',
-                body: formData
-              });
-              const data = await response.json();
-              displayResults(data);
-            } catch (error) {
-              displayError('Error processing audio:' + error.message);
-            } finally {
-              hideLoading();
+
+            async function handleFileUpload() {
+                const fileInput = document.getElementById('audioFile');
+                const file = fileInput.files[0];
+
+                if (!file) {
+                    displayError('Please select a file first');
+                    return;
+                }
+
+                const formData = new FormData();
+                formData.append('audio', file);
+
+                showLoading();
+                try {
+                    const response = await fetch('/transcribe', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const data = await response.json();
+                    displayResults(data);
+                } catch (error) {
+                    displayError('Error processing audio:' + error.message);
+                } finally {
+                    hideLoading();
+                }
             }
-          }
-      
-          async function handleStreamUrl() {
-            const streamUrl = document.getElementById('streamUrl').value;
-      
-            if (!streamUrl) {
-              displayError('Please enter a stream URL');
-              return;
+
+            async function handleStreamUrl() {
+                const streamUrl = document.getElementById('streamUrl').value;
+
+                if (!streamUrl) {
+                    displayError('Please enter a stream URL');
+                    return;
+                }
+
+                showLoading();
+                try {
+                    const response = await fetch('/stream', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ stream_url: streamUrl })
+                    });
+                    const data = await response.json();
+                    displayResults(data);
+                } catch (error) {
+                    displayError('Error processing stream:' + error.message);
+                } finally {
+                    hideLoading();
+                }
             }
-      
-            showLoading();
-            try {
-              const response = await fetch('/stream', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ stream_url: streamUrl })
-              });
-              const data = await response.json();
-              displayResults(data);
-            } catch (error) {
-              displayError('Error processing stream:' + error.message);
-            } finally {
-              hideLoading();
+            let mediaRecorder;
+            let chunks = [];
+
+            async function startRecording() {
+                const mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(mediaStream);
+
+                mediaRecorder.ondataavailable = (event) => {
+                    chunks.push(event.data);
+                };
+
+                mediaRecorder.onstop = async () => {
+                    const audioBlob = new Blob(chunks, { type: 'audio/wav' });
+                    const formData = new FormData();
+                    formData.append('audio', audioBlob);
+
+                    showLoading();
+                    try {
+                        const response = await fetch('/transcribe', {
+                            method: 'POST',
+                            body: formData
+                        });
+                        const data = await response.json();
+                        displayResults(data);
+                    } catch (error) {
+                        displayError('Error processing audio:' + error.message);
+                    } finally {
+                        hideLoading();
+                    }
+                };
+                mediaRecorder.start();
+
+                document.getElementById('recordButton').style.display = 'none';
+                document.getElementById('stopButton').style.display = 'inline-block';
             }
-          }
-      
-          async function handleRecordAudio() {
-            const audioContext = new AudioContext();
-            const mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            const mediaStreamSource = audioContext.createMediaStreamSource(mediaStream);
-            const gainNode = audioContext.createGain();
-            gainNode.gain.value = 1;
-            mediaStreamSource.connect(gainNode);
-            gainNode.connect(audioContext.destination);
-      
-            const chunks = [];
-            mediaStream.getAudioTracks()[0].addEventListener('ended', () => {
-              const audioBlob = new Blob(chunks, { type: 'audio/wav' });
-              const formData = new FormData();
-              formData.append('audio', audioBlob);
-      
-              showLoading();
-              try {
-                const response = fetch('/transcribe', {
-                  method: 'POST',
-                  body: formData
-                });
-                const data =  response.json();
-                displayResults(data);
-              } catch (error) {
-                displayError('Error processing audio:' + error.message);
-              } finally {
-                hideLoading();
-              }
-            });
-      
-            mediaStream.getAudioTracks()[0].addEventListener('dataavailable', (event) => {
-              chunks.push(event.data);
-            });
-          }
-      
-          document.addEventListener('DOMContentLoaded', () => {
+
+            function stopRecording() {
+                mediaRecorder.stop();
+
+                document.getElementById('recordButton').style.display = 'inline-block';
+                document.getElementById('stopButton').style.display = 'none';
+            }
+
+
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('uploadButton').addEventListener('click', handleFileUpload);
             document.getElementById('streamButton').addEventListener('click', handleStreamUrl);
-            document.getElementById('recordButton').addEventListener('click', handleRecordAudio);
-          });
-        }
-      
+            document.getElementById('recordButton').addEventListener('click', startRecording);
+            document.getElementById('stopButton').addEventListener('click', stopRecording);
+
+        });
+
         main().catch((err) => console.error(err));
-      </script>
+    </script>
 </body>
 
 </html>
