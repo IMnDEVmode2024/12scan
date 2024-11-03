@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -13,23 +14,24 @@
             background-color: #f5f5f5;
         }
 
-       .container {
+        .container {
             background-color: white;
             padding: 20px;
             border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
             margin-bottom: 20px;
         }
 
-        h1, h2 {
+        h1,
+        h2 {
             color: #333;
         }
 
-       .input-section {
+        .input-section {
             margin-bottom: 20px;
         }
 
-       .button {
+        .button {
             background-color: #4CAF50;
             color: white;
             padding: 10px 20px;
@@ -39,18 +41,18 @@
             font-size: 16px;
         }
 
-       .button:hover {
+        .button:hover {
             background-color: #45a049;
         }
 
-       .result-section {
+        .result-section {
             margin-top: 20px;
             padding: 15px;
             border: 1px solid #ddd;
             border-radius: 4px;
         }
 
-       .error {
+        .error {
             color: red;
             padding: 10px;
             background-color: #ffe6e6;
@@ -65,23 +67,39 @@
             box-sizing: border-box;
         }
 
-       .loading {
+        .loading {
             display: none;
             margin: 20px 0;
             text-align: center;
         }
 
-       .loading::after {
+        .loading::after {
             content: "Processing...";
             animation: dots 1s steps(5, end) infinite;
         }
 
         @keyframes dots {
-            0%, 20% { content: "Processing."; }
-            40% { content: "Processing.."; }
-            60% { content: "Processing..."; }
-            80% { content: "Processing...."; }
-            100% { content: "Processing....."; }
+
+            0%,
+            20% {
+                content: "Processing.";
+            }
+
+            40% {
+                content: "Processing..";
+            }
+
+            60% {
+                content: "Processing...";
+            }
+
+            80% {
+                content: "Processing....";
+            }
+
+            100% {
+                content: "Processing.....";
+            }
         }
 
         ul {
@@ -98,6 +116,7 @@
         }
     </style>
 </head>
+
 <body>
     <div class="container">
         <h1>Audio Transcription and Analysis</h1>
@@ -140,28 +159,29 @@
     </div>
 
     <script>
-        function showLoading() {
+        async function main() {
+          function showLoading() {
             document.getElementById('loading').style.display = 'block';
-        }
-
-        function hideLoading() {
+          }
+      
+          function hideLoading() {
             document.getElementById('loading').style.display = 'none';
-        }
-
-        function displayError(message) {
+          }
+      
+          function displayError(message) {
             const errorDiv = document.createElement('div');
             errorDiv.className = 'error';
             errorDiv.textContent = message;
             document.querySelector('.result-section').prepend(errorDiv);
             setTimeout(() => errorDiv.remove(), 5000);
-        }
-
-        function displayResults(data) {
+          }
+      
+          function displayResults(data) {
             if (data.error) {
-                displayError(data.error);
-                return;
+              displayError(data.error);
+              return;
             }
-
+      
             // Display transcription
             const transcriptionHtml = `
                 <p><strong>Full Text:</strong> ${data.transcription.full_text}</p>
@@ -175,7 +195,7 @@
                 </ul>
             `;
             document.getElementById('transcriptionResult').innerHTML = transcriptionHtml;
-
+      
             // Display entities
             const entitiesHtml = `
                 <ul>
@@ -185,7 +205,7 @@
                 </ul>
             `;
             document.getElementById('entitiesResult').innerHTML = entitiesHtml;
-
+      
             // Display locations
             const locationsHtml = `
                 <ul>
@@ -195,62 +215,62 @@
                 </ul>
             `;
             document.getElementById('locationsResult').innerHTML = locationsHtml;
-        }
-
-        async function handleFileUpload() {
+          }
+      
+          async function handleFileUpload() {
             const fileInput = document.getElementById('audioFile');
             const file = fileInput.files[0];
-
+      
             if (!file) {
-                displayError('Please select a file first');
-                return;
+              displayError('Please select a file first');
+              return;
             }
-
+      
             const formData = new FormData();
             formData.append('audio', file);
-
+      
             showLoading();
             try {
-                const response = await fetch('/transcribe', {
-                    method: 'POST',
-                    body: formData
-                });
-                const data = await response.json();
-                displayResults(data);
+              const response = await fetch('/transcribe', {
+                method: 'POST',
+                body: formData
+              });
+              const data = await response.json();
+              displayResults(data);
             } catch (error) {
-                displayError('Error processing audio:'+ error.message);
+              displayError('Error processing audio:' + error.message);
             } finally {
-                hideLoading();
+              hideLoading();
             }
-        }
-
-        async function handleStreamUrl() {
+          }
+      
+          async function handleStreamUrl() {
             const streamUrl = document.getElementById('streamUrl').value;
-
+      
             if (!streamUrl) {
-                displayError('Please enter a stream URL');
-                return;
+              displayError('Please enter a stream URL');
+              return;
             }
-
+      
             showLoading();
             try {
-                const response = await fetch('/stream', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ stream_url: streamUrl })
-                });
-                const data = await response.json();
-                displayResults(data);
+              const response = await fetch('/stream', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ stream_url: streamUrl })
+              });
+              const data = await response.json();
+              displayResults(data);
             } catch (error) {
-                displayError('Error processing stream:'+ error.message);
+              displayError('Error processing stream:' + error.message);
             } finally {
-                hideLoading();
+              hideLoading();
             }
-        }
-
-        async function handleRecordAudio() {
+          }
+      
+          async function handleRecordAudio() {
             const audioContext = new AudioContext();
             const mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
             const mediaStreamSource = audioContext.createMediaStreamSource(mediaStream);
@@ -258,32 +278,42 @@
             gainNode.gain.value = 1;
             mediaStreamSource.connect(gainNode);
             gainNode.connect(audioContext.destination);
-
+      
             const chunks = [];
             mediaStream.getAudioTracks()[0].addEventListener('ended', () => {
-                const audioBlob = new Blob(chunks, { type: 'audio/wav' });
-                const formData = new FormData();
-                formData.append('audio', audioBlob);
-
-                showLoading();
-                try {
-                    const response = await fetch('/transcribe', {
-                        method: 'POST',
-                        body: formData
-                    });
-                    const data = await response.json();
-                    displayResults(data);
-                } catch (error) {
-                    displayError('Error processing audio:'+ error.message);
-                } finally {
-                    hideLoading();
-                }
+              const audioBlob = new Blob(chunks, { type: 'audio/wav' });
+              const formData = new FormData();
+              formData.append('audio', audioBlob);
+      
+              showLoading();
+              try {
+                const response = fetch('/transcribe', {
+                  method: 'POST',
+                  body: formData
+                });
+                const data =  response.json();
+                displayResults(data);
+              } catch (error) {
+                displayError('Error processing audio:' + error.message);
+              } finally {
+                hideLoading();
+              }
             });
-
+      
             mediaStream.getAudioTracks()[0].addEventListener('dataavailable', (event) => {
-                chunks.push(event.data);
+              chunks.push(event.data);
             });
+          }
+      
+          document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('uploadButton').addEventListener('click', handleFileUpload);
+            document.getElementById('streamButton').addEventListener('click', handleStreamUrl);
+            document.getElementById('recordButton').addEventListener('click', handleRecordAudio);
+          });
         }
-    </script>
+      
+        main().catch((err) => console.error(err));
+      </script>
 </body>
+
 </html>
