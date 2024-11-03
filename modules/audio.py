@@ -1,9 +1,9 @@
 import pydub
 import requests
 import time
-import librosa
-import soundfile
-import noisereduce as nr
+import librosa # type: ignore
+import soundfile # type: ignore
+import noisereduce as nr # type: ignore
 import numpy as np
 from typing import Tuple, Optional
 

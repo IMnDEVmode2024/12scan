@@ -1,9 +1,9 @@
 import os
 import warnings
-from flask import Flask, render_template, jsonify, request, Response
+from flask import Flask, render_template, jsonify, request, Response # type: ignore
 from modules import audio, transcribe, nlp
 from modules.geo import GeoLocator
-import soundfile
+import soundfile # type: ignore
 from modules import db
 import pyaudio
 import wave

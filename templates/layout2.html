@@ -22,13 +22,34 @@
             margin-bottom: 20px;
         }
 
-        h1,
-        h2 {
+        h1, h2 {
             color: #333;
         }
 
-        .input-section {
+        .tabs {
             margin-bottom: 20px;
+        }
+
+        .tab-button {
+            padding: 10px 20px;
+            border: none;
+            background-color: #ddd;
+            cursor: pointer;
+            border-radius: 4px;
+            margin-right: 10px;
+        }
+
+        .tab-button.active {
+            background-color: #4CAF50;
+            color: white;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
         }
 
         .button {
@@ -73,35 +94,6 @@
             text-align: center;
         }
 
-        .loading::after {
-            content: "Processing...";
-            animation: dots 1s steps(5, end) infinite;
-        }
-
-        @keyframes dots {
-
-            0%,
-            20% {
-                content: "Processing.";
-            }
-
-            40% {
-                content: "Processing..";
-            }
-
-            60% {
-                content: "Processing...";
-            }
-
-            80% {
-                content: "Processing....";
-            }
-
-            100% {
-                content: "Processing.....";
-            }
-        }
-
         ul {
             list-style-type: none;
             padding: 0;
@@ -121,29 +113,41 @@
     <div class="container">
         <h1>Audio Transcription and Analysis</h1>
 
+        <div class="tabs">
+            <button class="tab-button active" onclick="showTab('upload')">Upload Audio File</button>
+            <button class="tab-button" onclick="showTab('stream')">Process Audio Stream</button>
+            <button class="tab-button" onclick="showTab('record')">Record Audio from Microphone</button>
+        </div>
+
         <!-- File Upload Section -->
-        <div class="input-section">
-            <h2>Upload Audio File</h2>
-            <input type="file" id="audioFile" accept="audio/*">
-            <button class="button" onclick="handleFileUpload()">Process Audio File</button>
+        <div id="uploadTab" class="tab-content active">
+            <div class="input-section">
+                <h2>Upload Audio File</h2>
+                <input type="file" id="audioFile" accept="audio/*">
+                <button class="button" id="uploadButton" onclick="handleFileUpload()">Process Audio File</button>
+            </div>
         </div>
 
         <!-- Stream URL Section -->
-        <div class="input-section">
-            <h2>Process Audio Stream</h2>
-            <input type="text" id="streamUrl" placeholder="Enter stream URL">
-            <button class="button" onclick="handleStreamUrl()">Process Stream</button>
+        <div id="streamTab" class="tab-content">
+            <div class="input-section">
+                <h2>Process Audio Stream</h2>
+                <input type="text" id="streamUrl" placeholder="Enter stream URL">
+                <button class="button" id="streamButton" onclick="handleStreamUrl()">Process Stream</button>
+            </div>
         </div>
 
         <!-- Record Audio Section -->
-        <div class="input-section">
-            <h2>Record Audio from Microphone</h2>
-            <button class="button" onclick="handleRecordAudio()">Record Audio</button>
-            <div id="recordedAudio"></div>
+        <div id="recordTab" class="tab-content">
+            <div class="input-section">
+                <h2>Record Audio from Microphone</h2>
+                <button class="button" id="recordButton" onclick="handleRecordAudio()">Record Audio</button>
+                <div id="recordedAudio"></div>
+            </div>
         </div>
 
         <!-- Loading Indicator -->
-        <div id="loading" class="loading"></div>
+        <div id="loading" class="loading">Processing...</div>
 
         <!-- Results Section -->
         <div class="result-section">
@@ -159,6 +163,20 @@
     </div>
 
     <script>
+        function showTab(tabName) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.tab-button').forEach(button => {
+                button.classList.remove('active');
+            });
+
+            // Show selected tab content
+            document.getElementById(tabName + 'Tab').classList.add('active');
+            event.target.classList.add('active');
+        }
+
         async function main() {
           function showLoading() {
             document.getElementById('loading').style.display = 'block';
