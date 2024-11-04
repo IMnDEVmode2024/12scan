@@ -7,6 +7,8 @@ import soundfile # type: ignore
 from modules import db
 import pyaudio
 import wave
+import librosa # type: ignore
+import numpy as np
 
 # Suppress warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
@@ -27,6 +29,7 @@ CHANNELS = 1
 RATE = 44100
 RECORD_SECONDS = 5
 WAVE_OUTPUT_FILENAME = "output.wav"
+
 
 @app.route("/", methods=["GET"])
 def retrieve():
@@ -73,7 +76,7 @@ def transcribe_audio():
         response = {
             'transcription': {
                 'full_text': transcription['full_text'],
-               'segments': [
+              'segments': [
                     {
                         'text': seg['text'],
                        'start': seg['start'],
@@ -133,10 +136,10 @@ def process_stream():
         response = {
             'transcription': {
                 'full_text': transcription['full_text'],
-               'segments': [
+             'segments': [
                     {
                         'text': seg['text'],
-                        'tart': seg['start'],
+                       'start': seg['start'],
                         'end': seg['end']
                     } for seg in transcription['segments']
                 ],
@@ -152,8 +155,19 @@ def process_stream():
         print(f"Stream processing error: {str(e)}")
         return jsonify({'error': f'Processing failed: {str(e)}'}), 500
 
-@app.route("/mic", methods=["GET"])
-def mic_stream():
+@app.route("/record_audio_from_mic", methods=["GET"])
+def record_audio_from_mic():
+    try:
+        # Start the audio recording
+        threading.Thread(target=record_audio).start()
+        return jsonify({'message': 'Recording started'})
+    except Exception as e:
+        print(f"Error starting recording: {str(e)}")
+        return jsonify({'error': f'Failed to start recording: {str(e)}'}), 500
+
+
+@app.route("/record_audio", methods=["POST"])
+def record_audio():
     try:
         # Open the microphone
         p = pyaudio.PyAudio()
@@ -162,64 +176,48 @@ def mic_stream():
                         rate=RATE,
                         input=True,
                         frames_per_buffer=CHUNK)
-        
+
         print("Recording...")
         frames = []
-        
+        chunk_counter = 0
+
         while True:
             data = stream.read(CHUNK)
             frames.append(data)
-            
-            # Save the recorded data to a WAV file
-            wf = wave.open(WAVE_OUTPUT_FILENAME, 'wb')
-            wf.setnchannels(CHANNELS)
-            wf.setsampwidth(p.get_sample_size(FORMAT))
-            wf.setframerate(RATE)
-            wf.writeframes(b''.join(frames))
-            wf.close()
-            
-            # Transcribe the recorded audio
-            transcription = transcriber.transcribe_audio_with_timestamps(WAVE_OUTPUT_FILENAME)
-            if not transcription:
-                return jsonify({'error': 'Transcription failed'}), 500
-            
-            # Extract entities using NLP processor
-            entities = nlp_processor.extract_entities(transcription['full_text'])
-            
-            # Get locations using new GeoLocator
-            try:
+
+            # Process the audio chunk every 30 seconds
+            if len(frames) >= CHUNK_SIZE * RATE / CHUNK:
+                chunk_counter += 1
+                chunk = b"".join(frames)
+                frames = []
+
+                # Save the chunk to a temporary file
+                temp_path = os.path.join('static', f'temp_audio_{chunk_counter}.wav')
+                wf = wave.open(temp_path, 'wb')
+                wf.setnchannels(CHANNELS)
+                wf.setsampwidth(p.get_sample_size(FORMAT))
+                wf.setframerate(RATE)
+                wf.writeframes(chunk)
+                wf.close()
+
+                # Transcribe the chunk
+                transcription = transcriber.transcribe_audio_with_timestamps(temp_path)
+
+                # Extract entities and locations
+                entities = nlp_processor.extract_entities(transcription['full_text'])
                 locations = geo_locator.locate_entities(entities)
-            except Exception as e:
-                print(f"Geocoding error: {str(e)}")
-                locations = []
-            
-             # Clean up
-        for temp_file in [temp_mp3, temp_wav]:
-            if os.path.exists(temp_file):
-                os.remove(temp_file)
-                
-        # Format the response
-        response = {
-            'transcription': {
-                'full_text': transcription['full_text'],
-                'segments': [
-                    {
-                        'text': seg['text'],
-                        'start': seg['start'],
-                        'end': seg['end']
-                    } for seg in transcription['segments']
-                ],
-                'language': transcription['language']
-            },
-            'entities': entities,
-            'locations': locations
-        }
-        
-        return jsonify(response)
-        
+
+                # Update the dashboard
+                response = {
+                    'transcription': transcription,
+                    'entities': entities,
+                    'locations': locations
+                }
+                return jsonify(response)
+
     except Exception as e:
-        print(f"Stream processing error: {str(e)}")
-        return jsonify({'error': f'Processing failed: {str(e)}'}), 500
+        print(f"Error recording audio: {str(e)}")
+        return jsonify({'error': f'Failed to record audio: {str(e)}'}), 500
 
 @app.route("/sendRequest/history", methods=["GET"])
 def history():
@@ -241,3 +239,4 @@ def history():
 if __name__ == "__main__":
     # Ensure static directory exists
     os.makedirs('static', exist_ok=True)
+    app.run(debug=True)

@@ -14,7 +14,7 @@
             background-color: #f5f5f5;
         }
 
-        .container {
+       .container {
             background-color: white;
             padding: 20px;
             border-radius: 8px;
@@ -27,11 +27,11 @@
             color: #333;
         }
 
-        .tabs {
+       .tabs {
             margin-bottom: 20px;
         }
 
-        .tab-button {
+       .tab-button {
             padding: 10px 20px;
             border: none;
             background-color: #ddd;
@@ -40,20 +40,20 @@
             margin-right: 10px;
         }
 
-        .tab-button.active {
+       .tab-button.active {
             background-color: #4CAF50;
             color: white;
         }
 
-        .tab-content {
+       .tab-content {
             display: none;
         }
 
-        .tab-content.active {
+       .tab-content.active {
             display: block;
         }
 
-        .button {
+       .button {
             background-color: #4CAF50;
             color: white;
             padding: 10px 20px;
@@ -63,18 +63,18 @@
             font-size: 16px;
         }
 
-        .button:hover {
+       .button:hover {
             background-color: #45a049;
         }
 
-        .result-section {
+       .result-section {
             margin-top: 20px;
             padding: 15px;
             border: 1px solid #ddd;
             border-radius: 4px;
         }
 
-        .error {
+       .error {
             color: red;
             padding: 10px;
             background-color: #ffe6e6;
@@ -89,7 +89,7 @@
             box-sizing: border-box;
         }
 
-        .loading {
+       .loading {
             display: none;
             margin: 20px 0;
             text-align: center;
@@ -144,7 +144,7 @@
                 <h2>Record Audio from Microphone</h2>
                 <button class="button" id="recordButton" onclick="startRecording()">Start Recording</button>
                 <button class="button" id="stopButton" style="display: none;" onclick="stopRecording()">Stop Recording</button>
-                <div id="recordedAudio"></div>
+                <div id="record_audio"></div>
             </div>
         </div>
 
@@ -289,42 +289,17 @@
                     hideLoading();
                 }
             }
+
             let mediaRecorder;
             let chunks = [];
 
             async function startRecording() {
-                const mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                mediaRecorder = new MediaRecorder(mediaStream);
-
-                mediaRecorder.ondataavailable = (event) => {
-                    chunks.push(event.data);
-                };
-
-                mediaRecorder.onstop = async () => {
-                    const audioBlob = new Blob(chunks, { type: 'audio/wav' });
-                    const formData = new FormData();
-                    formData.append('audio', audioBlob);
-
-                    showLoading();
-                    try {
-                        const response = await fetch('/transcribe', {
-                            method: 'POST',
-                            body: formData
-                        });
-                        const data = await response.json();
-                        displayResults(data);
-                    } catch (error) {
-                        displayError('Error processing audio:' + error.message);
-                    } finally {
-                        hideLoading();
-                    }
-                };
-                mediaRecorder.start();
-
-                document.getElementById('recordButton').style.display = 'none';
-                document.getElementById('stopButton').style.display = 'inline-block';
-            }
-
+              fetch('/record_audio_from_mic')
+                .then(response => response.json())
+                .then(data => console.log(data))
+                .catch(error => console.error(error));
+              }  
+              
             function stopRecording() {
                 mediaRecorder.stop();
 
@@ -344,7 +319,55 @@
         });
 
         main().catch((err) => console.error(err));
+
+
+
+ function mic_stream() {
+            // Use the Web Audio API to get access to the user's microphone
+            navigator.mediaDevices.getUserMedia({ audio: true })
+               .then(stream => {
+                    // Create a MediaRecorder object to record the audio
+                    const mediaRecorder = new MediaRecorder(stream);
+
+                    // Create an array to store the recorded audio chunks
+                    const audioChunks = [];
+
+                    // Define the ondataavailable event handler to store the recorded audio chunks
+                    mediaRecorder.ondataavailable = event => {
+                        audioChunks.push(event.data);
+                    };
+
+                    // Define the onstop event handler to send the recorded audio to the server
+                    mediaRecorder.onstop = async () => {
+                        // Create a new Blob object from the recorded audio chunks
+                        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+
+                        // Create a new FormData object to send the audio to the server
+                        const formData = new FormData();
+                        formData.append('audio', audioBlob);
+
+                        // Send the audio to the server using the fetch API
+                        fetch('/recordedAudio', {
+                            method: 'POST',
+                            body: formData
+                        })
+                           .then(response => response.json())
+                           .then(data => console.log(data.processed_audio))
+                           .catch(error => console.error(error));
+                    };
+
+                    // Start recording the audio
+                    mediaRecorder.start();
+
+                    // Set a timeout to stop recording after 10 seconds
+                    setTimeout(() => {
+                        mediaRecorder.stop();
+                    }, 10000);
+                })
+               .catch(error => console.error('Error accessing microphone:', error));
+        }
     </script>
 </body>
 
 </html>
+		
